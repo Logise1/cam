@@ -1,36 +1,45 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>AI Portal CCTV (PWA + Live HD + DVR)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
-    
+
     <!-- Manifest & SW -->
     <link rel="manifest" href="manifest.json">
 
     <link rel="stylesheet" href="styles.css">
 </head>
+
 <body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col font-sans selection:bg-blue-500/30">
 
-    <div id="red-status" class="absolute top-4 right-4 z-50 flex items-center gap-2 bg-slate-800/80 backdrop-blur px-3 py-1.5 rounded-full border border-slate-700 text-xs font-mono transition-colors hidden">
+    <div id="red-status"
+        class="absolute top-4 right-4 z-50 flex items-center gap-2 bg-slate-800/80 backdrop-blur px-3 py-1.5 rounded-full border border-slate-700 text-xs font-mono transition-colors hidden">
         <span id="red-dot" class="w-2.5 h-2.5 rounded-full bg-yellow-500 animate-pulse"></span>
         <span id="red-text" class="text-slate-300">Conectando...</span>
     </div>
 
     <!-- MODAL DE CONTRASEÑA -->
-    <div id="modal-password" class="hidden fixed inset-0 bg-black/90 backdrop-blur-md z-[100] flex items-center justify-center p-4">
+    <div id="modal-password"
+        class="hidden fixed inset-0 bg-black/90 backdrop-blur-md z-[100] flex items-center justify-center p-4">
         <div class="bg-slate-800 border border-slate-700 p-6 rounded-2xl w-full max-w-sm shadow-2xl animate-fade-in">
             <h3 class="text-xl font-bold mb-2 flex items-center gap-2">
                 <i data-lucide="lock" class="text-blue-400"></i> Cámara Segura
             </h3>
-            <p class="text-slate-400 text-sm mb-4">La conexión requerirá acceso a pantalla completa y rotación horizontal.</p>
-            <input type="password" id="input-auth-pass" placeholder="Contraseña..." class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white mb-4 focus:ring-1 focus:ring-blue-500 outline-none">
+            <p class="text-slate-400 text-sm mb-4">La conexión requerirá acceso a pantalla completa y rotación
+                horizontal.</p>
+            <input type="password" id="input-auth-pass" placeholder="Contraseña..."
+                class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white mb-4 focus:ring-1 focus:ring-blue-500 outline-none">
             <div class="flex justify-end gap-3">
-                <button onclick="App.cerrarModalPassword()" class="px-4 py-2 text-slate-400 hover:text-white">Cancelar</button>
-                <button onclick="App.conectarCamaraSegura()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg font-medium shadow-lg flex items-center gap-2">
+                <button onclick="App.cerrarModalPassword()"
+                    class="px-4 py-2 text-slate-400 hover:text-white">Cancelar</button>
+                <button onclick="App.conectarCamaraSegura()"
+                    class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg font-medium shadow-lg flex items-center gap-2">
                     <i data-lucide="play" class="w-4 h-4"></i> Entrar al Visor
                 </button>
             </div>
@@ -38,53 +47,64 @@
     </div>
 
     <!-- NUEVO: MODAL DE INSTRUCCIONES MANUALES PWA -->
-    <div id="modal-instrucciones-pwa" class="hidden fixed inset-0 bg-black/90 backdrop-blur-md z-[150] flex items-center justify-center p-4">
-        <div class="bg-slate-800 border border-slate-700 p-6 rounded-2xl w-full max-w-md shadow-2xl animate-fade-in relative">
-            <button onclick="document.getElementById('modal-instrucciones-pwa').classList.add('hidden')" class="absolute top-4 right-4 text-slate-400 hover:text-white">
+    <div id="modal-instrucciones-pwa"
+        class="hidden fixed inset-0 bg-black/90 backdrop-blur-md z-[150] flex items-center justify-center p-4">
+        <div
+            class="bg-slate-800 border border-slate-700 p-6 rounded-2xl w-full max-w-md shadow-2xl animate-fade-in relative">
+            <button onclick="document.getElementById('modal-instrucciones-pwa').classList.add('hidden')"
+                class="absolute top-4 right-4 text-slate-400 hover:text-white">
                 <i data-lucide="x" class="w-5 h-5"></i>
             </button>
-            
+
             <h3 class="text-xl font-bold mb-4 flex items-center gap-2 text-blue-400">
                 <i data-lucide="download" class="w-6 h-6"></i> Instalación Manual
             </h3>
-            <p class="text-slate-300 text-sm mb-6">Tu navegador bloquea la instalación automática. Sigue estos pasos para instalarla y evitar que la cámara se apague:</p>
-            
+            <p class="text-slate-300 text-sm mb-6">Tu navegador bloquea la instalación automática. Sigue estos pasos
+                para instalarla y evitar que la cámara se apague:</p>
+
             <div class="space-y-4">
                 <div class="bg-slate-900 p-4 rounded-lg border border-slate-700">
-                    <h4 class="font-bold text-emerald-400 mb-2 flex items-center gap-2"><i data-lucide="smartphone" class="w-4 h-4"></i> En Android (Chrome)</h4>
+                    <h4 class="font-bold text-emerald-400 mb-2 flex items-center gap-2"><i data-lucide="smartphone"
+                            class="w-4 h-4"></i> En Android (Chrome)</h4>
                     <ol class="text-sm text-slate-400 list-decimal list-inside space-y-1">
                         <li>Toca los <strong>tres puntos (⋮)</strong> arriba a la derecha.</li>
-                        <li>Selecciona <strong>"Añadir a pantalla de inicio"</strong> o <strong>"Instalar aplicación"</strong>.</li>
+                        <li>Selecciona <strong>"Añadir a pantalla de inicio"</strong> o <strong>"Instalar
+                                aplicación"</strong>.</li>
                     </ol>
                 </div>
-                
+
                 <div class="bg-slate-900 p-4 rounded-lg border border-slate-700">
-                    <h4 class="font-bold text-blue-400 mb-2 flex items-center gap-2"><i data-lucide="apple" class="w-4 h-4"></i> En iOS (Safari)</h4>
+                    <h4 class="font-bold text-blue-400 mb-2 flex items-center gap-2"><i data-lucide="apple"
+                            class="w-4 h-4"></i> En iOS (Safari)</h4>
                     <ol class="text-sm text-slate-400 list-decimal list-inside space-y-1">
                         <li>Toca el botón <strong>Compartir</strong> (cuadrado con flecha) abajo en el centro.</li>
                         <li>Desliza hacia abajo y selecciona <strong>"Añadir a la pantalla de inicio"</strong>.</li>
                     </ol>
                 </div>
             </div>
-            <button onclick="document.getElementById('modal-instrucciones-pwa').classList.add('hidden')" class="w-full mt-6 py-3 bg-slate-700 hover:bg-slate-600 rounded-lg font-bold transition-colors">Entendido</button>
+            <button onclick="document.getElementById('modal-instrucciones-pwa').classList.add('hidden')"
+                class="w-full mt-6 py-3 bg-slate-700 hover:bg-slate-600 rounded-lg font-bold transition-colors">Entendido</button>
         </div>
     </div>
 
     <!-- MENÚS PRINCIPALES -->
     <main id="app-container" class="flex-1 w-full max-w-4xl mx-auto p-6 flex flex-col transition-colors duration-500">
-        
+
         <!-- INICIO -->
         <div id="inicio-view" class="my-auto space-y-8 text-center animate-fade-in">
-            
+
             <!-- BANNER DE INSTALACIÓN PWA -->
-            <div id="pwa-install-banner" class="hidden bg-blue-600/20 border border-blue-500/50 p-4 rounded-xl mb-6 flex justify-between items-center text-left">
+            <div id="pwa-install-banner"
+                class="hidden bg-blue-600/20 border border-blue-500/50 p-4 rounded-xl mb-6 flex justify-between items-center text-left">
                 <div>
                     <h3 class="text-white font-bold flex items-center gap-2">
                         <i data-lucide="shield-alert" class="w-4 h-4 text-blue-400"></i> Protección de Energía
                     </h3>
-                    <p class="text-blue-200 text-xs mt-1">Instala la app para evitar que tu móvil cierre la cámara en segundo plano.</p>
+                    <p class="text-blue-200 text-xs mt-1">Instala la app para evitar que tu móvil cierre la cámara en
+                        segundo plano.</p>
                 </div>
-                <button onclick="App.instalarPWA()" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg font-bold shadow-lg transition-colors text-sm shrink-0 ml-4 flex items-center gap-2">
+                <button onclick="App.instalarPWA()"
+                    class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg font-bold shadow-lg transition-colors text-sm shrink-0 ml-4 flex items-center gap-2">
                     <i data-lucide="download" class="w-4 h-4"></i> Instalar
                 </button>
             </div>
@@ -92,32 +112,46 @@
             <h1 class="text-3xl font-bold tracking-tight text-white mb-2">CCTV Enterprise Core</h1>
             <p class="text-slate-400 mb-8">PWA App, Live HD, DVR Sync y Alarma Inercial</p>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <button onclick="App.mostrarConfiguracion()" class="group bg-slate-800 hover:bg-slate-700 p-8 rounded-2xl border border-slate-700 flex flex-col items-center gap-4 transition-all shadow-lg hover:shadow-blue-500/10">
-                    <div class="bg-blue-500/20 p-4 rounded-full group-hover:scale-110 transition-transform"><i data-lucide="camera" class="w-8 h-8 text-blue-400"></i></div>
-                    <div><h2 class="text-xl font-semibold">Crear Cámara</h2><p class="text-slate-400 text-sm mt-1">Colocar este dispositivo y grabar</p></div>
+                <button onclick="App.mostrarConfiguracion()"
+                    class="group bg-slate-800 hover:bg-slate-700 p-8 rounded-2xl border border-slate-700 flex flex-col items-center gap-4 transition-all shadow-lg hover:shadow-blue-500/10">
+                    <div class="bg-blue-500/20 p-4 rounded-full group-hover:scale-110 transition-transform"><i
+                            data-lucide="camera" class="w-8 h-8 text-blue-400"></i></div>
+                    <div>
+                        <h2 class="text-xl font-semibold">Crear Cámara</h2>
+                        <p class="text-slate-400 text-sm mt-1">Colocar este dispositivo y grabar</p>
+                    </div>
                 </button>
-                <button onclick="App.iniciarModoVisor()" class="group bg-slate-800 hover:bg-slate-700 p-8 rounded-2xl border border-slate-700 flex flex-col items-center gap-4 transition-all shadow-lg hover:shadow-emerald-500/10">
-                    <div class="bg-emerald-500/20 p-4 rounded-full group-hover:scale-110 transition-transform"><i data-lucide="monitor-play" class="w-8 h-8 text-emerald-400"></i></div>
-                    <div><h2 class="text-xl font-semibold">Ver Cámaras</h2><p class="text-slate-400 text-sm mt-1">Monitorizar a distancia</p></div>
+                <button onclick="App.iniciarModoVisor()"
+                    class="group bg-slate-800 hover:bg-slate-700 p-8 rounded-2xl border border-slate-700 flex flex-col items-center gap-4 transition-all shadow-lg hover:shadow-emerald-500/10">
+                    <div class="bg-emerald-500/20 p-4 rounded-full group-hover:scale-110 transition-transform"><i
+                            data-lucide="monitor-play" class="w-8 h-8 text-emerald-400"></i></div>
+                    <div>
+                        <h2 class="text-xl font-semibold">Ver Cámaras</h2>
+                        <p class="text-slate-400 text-sm mt-1">Monitorizar a distancia</p>
+                    </div>
                 </button>
             </div>
         </div>
 
         <!-- CONFIG CAMARA -->
         <div id="config-camara-view" class="hidden my-auto max-w-md mx-auto w-full space-y-6">
-            <button onclick="App.volverInicio()" class="text-slate-400 hover:text-white flex items-center gap-2"><i data-lucide="arrow-left" class="w-4 h-4"></i> Volver</button>
+            <button onclick="App.volverInicio()" class="text-slate-400 hover:text-white flex items-center gap-2"><i
+                    data-lucide="arrow-left" class="w-4 h-4"></i> Volver</button>
             <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-xl">
                 <h2 class="text-xl font-semibold mb-4">Configurar Emisor</h2>
                 <div class="space-y-4">
                     <div>
                         <label class="block text-sm text-slate-400 mb-1">Nombre</label>
-                        <input type="text" id="nombre-camara" placeholder="Ej. Puerta Principal" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white outline-none focus:border-blue-500 transition-colors">
+                        <input type="text" id="nombre-camara" placeholder="Ej. Puerta Principal"
+                            class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white outline-none focus:border-blue-500 transition-colors">
                     </div>
                     <div>
                         <label class="block text-sm text-slate-400 mb-1">Contraseña P2P</label>
-                        <input type="password" id="pass-camara" placeholder="***" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white outline-none focus:border-blue-500 transition-colors">
+                        <input type="password" id="pass-camara" placeholder="***"
+                            class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white outline-none focus:border-blue-500 transition-colors">
                     </div>
-                    <button onclick="App.iniciarEmision()" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-medium py-3 rounded-lg flex justify-center items-center gap-2 transition-colors">
+                    <button onclick="App.iniciarEmision()"
+                        class="w-full bg-blue-600 hover:bg-blue-500 text-white font-medium py-3 rounded-lg flex justify-center items-center gap-2 transition-colors">
                         <i data-lucide="shield-check" class="w-5 h-5"></i> Iniciar Emisión Segura
                     </button>
                 </div>
@@ -125,20 +159,29 @@
         </div>
 
         <!-- CAMARA ACTIVA (BROADCASTER) -->
-        <div id="emision-activa-view" class="hidden fixed inset-0 flex flex-col items-center justify-center z-50 bg-black">
-            <video id="video-fuente" autoplay playsinline muted class="w-full h-full object-cover absolute inset-0 z-0 opacity-20"></video>
+        <div id="emision-activa-view"
+            class="hidden fixed inset-0 flex flex-col items-center justify-center z-50 bg-black">
+            <video id="video-fuente" autoplay playsinline muted
+                class="w-full h-full object-cover absolute inset-0 z-0 opacity-20"></video>
             <canvas id="canvas-dvr" class="hidden"></canvas>
-            
-            <div class="text-center p-6 bg-slate-800/80 backdrop-blur-md rounded-xl relative z-10 border border-slate-700 shadow-2xl">
-                <p id="indicador-emision" class="text-emerald-400 font-mono mb-4 animate-pulse font-bold tracking-widest flex items-center justify-center gap-2">
+
+            <div
+                class="text-center p-6 bg-slate-800/80 backdrop-blur-md rounded-xl relative z-10 border border-slate-700 shadow-2xl">
+                <p id="indicador-emision"
+                    class="text-emerald-400 font-mono mb-4 animate-pulse font-bold tracking-widest flex items-center justify-center gap-2">
                     <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span> GRABANDO
                 </p>
-                <div id="stats-emision" class="text-xs text-slate-300 font-mono mb-6 space-y-2 text-left bg-slate-900/50 p-3 rounded-lg border border-slate-700/50">
-                    <p class="flex justify-between w-40"><span>Lente:</span> <span id="lbl-lente" class="text-white font-bold">Trasera</span></p>
-                    <p class="flex justify-between w-40"><span>Visores:</span> <span id="lbl-visores" class="text-blue-400 font-bold">0</span></p>
-                    <p class="flex justify-between w-40"><span>RAM frames:</span> <span id="lbl-buffer" class="text-yellow-400 font-bold">0</span></p>
+                <div id="stats-emision"
+                    class="text-xs text-slate-300 font-mono mb-6 space-y-2 text-left bg-slate-900/50 p-3 rounded-lg border border-slate-700/50">
+                    <p class="flex justify-between w-40"><span>Lente:</span> <span id="lbl-lente"
+                            class="text-white font-bold">Trasera</span></p>
+                    <p class="flex justify-between w-40"><span>Visores:</span> <span id="lbl-visores"
+                            class="text-blue-400 font-bold">0</span></p>
+                    <p class="flex justify-between w-40"><span>RAM frames:</span> <span id="lbl-buffer"
+                            class="text-yellow-400 font-bold">0</span></p>
                 </div>
-                <button onclick="App.detenerEmision()" class="bg-red-500/20 text-red-400 border border-red-500/50 px-8 py-3 rounded-lg font-bold shadow-lg hover:bg-red-500/40 transition-colors w-full">
+                <button onclick="App.detenerEmision()"
+                    class="bg-red-500/20 text-red-400 border border-red-500/50 px-8 py-3 rounded-lg font-bold shadow-lg hover:bg-red-500/40 transition-colors w-full">
                     Detener Cámara
                 </button>
             </div>
@@ -146,68 +189,87 @@
 
         <!-- LISTA DE CÁMARAS -->
         <div id="lista-camaras-view" class="hidden w-full space-y-6 mt-4 pb-12">
-            <button onclick="App.volverInicio()" class="text-slate-400 hover:text-white flex items-center gap-2"><i data-lucide="arrow-left" class="w-4 h-4"></i> Volver</button>
-            <h2 class="text-xl font-bold text-white flex items-center gap-2"><i data-lucide="cctv" class="text-emerald-400"></i> Cámaras Activas</h2>
+            <button onclick="App.volverInicio()" class="text-slate-400 hover:text-white flex items-center gap-2"><i
+                    data-lucide="arrow-left" class="w-4 h-4"></i> Volver</button>
+            <h2 class="text-xl font-bold text-white flex items-center gap-2"><i data-lucide="cctv"
+                    class="text-emerald-400"></i> Cámaras Activas</h2>
             <div id="contenedor-lista" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
         </div>
     </main>
 
     <!-- REPRODUCTOR (VISOR) -->
     <div id="reproductor-view" class="hidden fixed inset-0 bg-black z-[200] flex items-center justify-center group">
-        
-        <div id="portrait-warning" class="hidden absolute inset-0 bg-black/90 z-[300] flex-col items-center justify-center text-center p-8">
+
+        <div id="portrait-warning"
+            class="hidden absolute inset-0 bg-black/90 z-[300] flex-col items-center justify-center text-center p-8">
             <i data-lucide="rotate-ccw" class="w-16 h-16 text-blue-500 animate-bounce mb-4"></i>
             <h2 class="text-2xl font-bold text-white mb-2">Gira tu teléfono</h2>
             <p class="text-slate-400">Requerido para el modo vigilancia.</p>
         </div>
 
         <!-- VIDEO LIVE (Alta Calidad P2P) -->
-        <video id="video-remoto" autoplay playsinline muted class="w-full h-full object-contain transition-all duration-300"></video>
-        
+        <video id="video-remoto" autoplay playsinline muted
+            class="w-full h-full object-contain transition-all duration-300"></video>
+
         <!-- DVR IMAGEN -->
-        <img id="dvr-imagen" src="" class="w-full h-full object-contain hidden transition-all duration-300 filter contrast-125 saturate-75">
-        
-        <div id="overlay-cargando" class="absolute flex flex-col items-center gap-2 z-10 bg-black/60 p-6 rounded-2xl backdrop-blur-md border border-slate-700">
+        <img id="dvr-imagen" src=""
+            class="w-full h-full object-contain hidden transition-all duration-300 filter contrast-125 saturate-75">
+
+        <div id="overlay-cargando"
+            class="absolute flex flex-col items-center gap-2 z-10 bg-black/60 p-6 rounded-2xl backdrop-blur-md border border-slate-700">
             <i data-lucide="loader-2" class="w-12 h-12 text-blue-500 animate-spin"></i>
             <p class="text-sm text-slate-300 font-mono mt-2" id="texto-carga">Negociando túnel...</p>
         </div>
 
         <!-- CONTROLES SUPERIORES -->
-        <div class="absolute top-0 left-0 w-full bg-gradient-to-b from-black/80 to-transparent p-4 flex justify-between items-start opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity z-20">
-            <button onclick="App.desconectarVisor()" class="bg-black/50 hover:bg-black text-white p-3 rounded-full backdrop-blur-sm border border-slate-700/50 transition-all shadow-lg hover:scale-105">
+        <div
+            class="absolute top-0 left-0 w-full bg-gradient-to-b from-black/80 to-transparent p-4 flex justify-between items-start opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity z-20">
+            <button onclick="App.desconectarVisor()"
+                class="bg-black/50 hover:bg-black text-white p-3 rounded-full backdrop-blur-sm border border-slate-700/50 transition-all shadow-lg hover:scale-105">
                 <i data-lucide="x" class="w-6 h-6"></i>
             </button>
-            
+
             <div class="flex flex-col items-end gap-3">
                 <div class="flex items-center gap-2">
-                    <button id="btn-audio-toggle" onclick="App.toggleAudioVisor()" class="px-4 py-2 rounded-full text-xs font-bold tracking-wide bg-slate-800/80 text-white border border-slate-600 flex items-center gap-2 shadow-lg hover:bg-slate-700 transition-colors backdrop-blur-md">
-                        <i data-lucide="volume-x" id="icon-audio" class="w-4 h-4 text-red-400"></i> <span id="texto-audio">Activar Sonido</span>
+                    <button id="btn-audio-toggle" onclick="App.toggleAudioVisor()"
+                        class="px-4 py-2 rounded-full text-xs font-bold tracking-wide bg-slate-800/80 text-white border border-slate-600 flex items-center gap-2 shadow-lg hover:bg-slate-700 transition-colors backdrop-blur-md">
+                        <i data-lucide="volume-x" id="icon-audio" class="w-4 h-4 text-red-400"></i> <span
+                            id="texto-audio">Activar Sonido</span>
                     </button>
-                    
-                    <span id="estado-reproduccion" class="px-4 py-2 rounded-full text-xs font-bold tracking-widest bg-red-500/20 text-red-400 border border-red-500/30 flex items-center gap-2 backdrop-blur-md shadow-lg uppercase">
-                        <span id="estado-dot" class="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.8)]"></span> <span id="estado-texto">Live HD</span>
+
+                    <span id="estado-reproduccion"
+                        class="px-4 py-2 rounded-full text-xs font-bold tracking-widest bg-red-500/20 text-red-400 border border-red-500/30 flex items-center gap-2 backdrop-blur-md shadow-lg uppercase">
+                        <span id="estado-dot"
+                            class="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.8)]"></span>
+                        <span id="estado-texto">Live HD</span>
                     </span>
                 </div>
-                
-                <div class="bg-black/70 backdrop-blur-md border border-slate-700/50 p-3 rounded-xl flex flex-col gap-3 shadow-2xl">
+
+                <div
+                    class="bg-black/70 backdrop-blur-md border border-slate-700/50 p-3 rounded-xl flex flex-col gap-3 shadow-2xl">
                     <div class="flex items-center justify-between gap-4">
-                        <select id="selector-dvr" onchange="App.cambiarModoDVRVisor(this.value)" class="bg-slate-800 border border-slate-600 text-xs rounded-lg px-2 py-1.5 outline-none text-slate-200 w-full shadow-inner">
+                        <select id="selector-dvr" onchange="App.cambiarModoDVRVisor(this.value)"
+                            class="bg-slate-800 border border-slate-600 text-xs rounded-lg px-2 py-1.5 outline-none text-slate-200 w-full shadow-inner">
                             <option value="1">Memoria: 1 Minuto</option>
                             <option value="5">Memoria: 5 Minutos</option>
                             <option value="10">Memoria: 10 Minutos</option>
                         </select>
 
-                        <button onclick="App.ordenarCambioLente()" title="Girar Cámara Remota" class="bg-slate-700 hover:bg-blue-600 p-2 rounded-lg border border-slate-600 transition-colors shadow-md">
+                        <button onclick="App.ordenarCambioLente()" title="Girar Cámara Remota"
+                            class="bg-slate-700 hover:bg-blue-600 p-2 rounded-lg border border-slate-600 transition-colors shadow-md">
                             <i data-lucide="switch-camera" class="w-4 h-4 text-white"></i>
                         </button>
-                        <button id="btn-antitoque" onclick="App.ordenarAntiToque()" title="Armar Protección Antitoques" class="bg-slate-700 hover:bg-red-600 p-2 rounded-lg border border-slate-600 transition-colors relative shadow-md">
+                        <button id="btn-antitoque" onclick="App.ordenarAntiToque()" title="Armar Protección Antitoques"
+                            class="bg-slate-700 hover:bg-red-600 p-2 rounded-lg border border-slate-600 transition-colors relative shadow-md">
                             <i data-lucide="shield" id="icon-antitoque" class="w-4 h-4 text-white"></i>
                         </button>
                     </div>
 
                     <div class="flex items-center gap-2 bg-slate-900/50 p-2 rounded-lg border border-slate-700/50">
                         <i data-lucide="moon" class="w-4 h-4 text-slate-400"></i>
-                        <input type="range" id="brillo-slider" min="1" max="5" step="0.1" value="1" oninput="App.actualizarFiltros()" class="w-full h-1.5 bg-slate-600 rounded-lg appearance-none outline-none accent-yellow-500 touch-none">
+                        <input type="range" id="brillo-slider" min="1" max="5" step="0.1" value="1"
+                            oninput="App.actualizarFiltros()"
+                            class="w-full h-1.5 bg-slate-600 rounded-lg appearance-none outline-none accent-yellow-500 touch-none">
                         <i data-lucide="sun" class="w-4 h-4 text-yellow-500"></i>
                     </div>
                 </div>
@@ -215,22 +277,28 @@
         </div>
 
         <!-- CONTROLES INFERIORES -->
-        <div class="absolute bottom-0 left-0 w-full bg-gradient-to-t from-black via-black/90 to-transparent pt-24 pb-8 px-6 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity z-20">
+        <div
+            class="absolute bottom-0 left-0 w-full bg-gradient-to-t from-black via-black/90 to-transparent pt-24 pb-8 px-6 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity z-20">
             <div class="flex flex-col gap-4 max-w-5xl mx-auto">
                 <div class="flex justify-between text-sm font-mono text-slate-300 font-bold drop-shadow-md px-1">
                     <span id="tiempo-dvr-max" class="bg-black/50 px-2 py-0.5 rounded">-0m</span>
-                    <span id="tiempo-dvr" class="text-blue-400 text-lg bg-black/50 px-3 py-1 rounded-lg border border-blue-500/30">EN DIRECTO</span>
+                    <span id="tiempo-dvr"
+                        class="text-blue-400 text-lg bg-black/50 px-3 py-1 rounded-lg border border-blue-500/30">EN
+                        DIRECTO</span>
                 </div>
                 <div class="flex items-center gap-4">
-                    <button onclick="App.volverAlLive()" id="btn-live-control" class="hidden text-xs bg-red-500 hover:bg-red-600 text-white px-5 py-3.5 rounded-xl font-bold shrink-0 uppercase shadow-lg border border-red-400/50 transition-all">
+                    <button onclick="App.volverAlLive()" id="btn-live-control"
+                        class="hidden text-xs bg-red-500 hover:bg-red-600 text-white px-5 py-3.5 rounded-xl font-bold shrink-0 uppercase shadow-lg border border-red-400/50 transition-all">
                         Ir al Directo
                     </button>
-                    <input type="range" id="cam-timeline" min="0" max="0" value="0" class="w-full h-4 bg-slate-700 rounded-full appearance-none outline-none accent-blue-500 touch-none shadow-inner border border-slate-600">
+                    <input type="range" id="cam-timeline" min="0" max="0" value="0"
+                        class="w-full h-4 bg-slate-700 rounded-full appearance-none outline-none accent-blue-500 touch-none shadow-inner border border-slate-600">
                 </div>
             </div>
         </div>
     </div>
 
-    <script type="module" src="script.js"></script>
+    <script src="script.js"></script>
 </body>
+
 </html>
