@@ -27,19 +27,13 @@ async function initCore() {
         lenteActiva: 'environment', mediaCallsActivas: [],
 
         // MOTOR HÍBRIDO: FOTOS (MJPEG) + AUDIO SYNC
-        frameBuffer: [],
-        dvrInterval: null,
-        dataChannels: [],
-        grabandoDVR: false,
-        audioRecorder: null,
-        currentAudioBase64: null,
-        configDVR: { minutos: 1, fps: 5, calidadJpeg: 0.5, maxFrames: 300 },
-
-        // VISOR
-        visorCall: null, visorDataConn: null, camaraSeleccionada: null,
-        esLive: true, bufferSizeRemoto: 0, fpsRemoto: 5, filtroBrillo: 1,
-        dvrPlaybackInterval: null, reproduciendoDvrIndex: -1,
-        audioPlayer: new Audio(),
+        // Variables Globales App
+        peer: null, stream: null, dataChannels: [], mediaCallsActivas: [],
+        camaraId: null, camaraSeleccionada: null, miPassword: '',
+        esLive: true, cloudLinks: [], configDVR: { minutos: 1, maxChunks: 12 }, grabandoDVR: false,
+        nubeRecorder: null, reproduciendoDvrIndex: 0, bufferSizeRemoto: 0, fpsRemoto: 0.2, cloudLinksRemoto: [],
+        visorDataConn: null, visorCall: null, videoRemoto: null, videoDvr: null, audioPlayer: null,
+        lenteActiva: 'environment', filtroBrillo: 1.0,
 
         // --- LÓGICA PWA (Senior Architecture Fallback) ---
         deferredPrompt: null,
@@ -192,7 +186,11 @@ async function initCore() {
                 // RECONEXIÓN AUTOMÁTICA PEERJS
                 App.peer.on('disconnected', () => {
                     if (App.grabandoDVR && !App.peer.destroyed) {
-                        App.peer.reconnect();
+                        setTimeout(() => {
+                            if (App.grabandoDVR && !App.peer.destroyed) {
+                                App.peer.reconnect();
+                            }
+                        }, 5000);
                     }
                 });
 
@@ -214,15 +212,8 @@ async function initCore() {
                     if (App.AntiToque.armado) setTimeout(() => { if (conn.open) conn.send({ type: 'antitoque_status', armado: true }); }, 1000);
 
                     conn.on('data', (data) => {
-                        if (data.type === 'req_frame') {
-                            const idx = Math.max(0, Math.min(data.index, App.frameBuffer.length - 1));
-                            if (App.frameBuffer[idx]) conn.send({ type: 'dvr_playback_data', frame: App.frameBuffer[idx].f });
-                        }
-                        else if (data.type === 'req_playback') {
-                            const idx = Math.max(0, Math.min(data.index, App.frameBuffer.length - 1));
-                            if (App.frameBuffer[idx]) {
-                                conn.send({ type: 'dvr_playback_data', frame: App.frameBuffer[idx].f, audio: App.frameBuffer[idx].a });
-                            }
+                        if (data.type === 'req_sync') {
+                            conn.send({ type: 'sync_timeline', maxFrames: App.cloudLinks.length, fps: 0.2, minutosConfigurados: App.configDVR.minutos, ids: App.cloudLinks });
                         }
                         else if (data.type === 'set_dvr_mode') App.aplicarMotorDVR(parseInt(data.minutos));
                         else if (data.type === 'switch_camera') App.ejecutarCambioLenteLocal();
@@ -276,97 +267,72 @@ async function initCore() {
             } catch (error) { }
         },
 
-        // --- MOTOR HÍBRIDO DVR ---
+        // --- MOTOR CLOUD DVR ---
         aplicarMotorDVR: (minutos) => {
-            clearInterval(App.dvrInterval);
-            if (App.audioRecorder && App.audioRecorder.state !== 'inactive') App.audioRecorder.stop();
+            let maxChunks = (minutos * 60) / 5;
+            App.configDVR = { minutos: minutos, maxChunks: maxChunks };
+            if (App.cloudLinks.length > maxChunks) App.cloudLinks = App.cloudLinks.slice(App.cloudLinks.length - maxChunks);
 
-            if (minutos === 10) App.configDVR = { minutos: 10, fps: 2, calidadJpeg: 0.2, maxFrames: 1200 };
-            else if (minutos === 5) App.configDVR = { minutos: 5, fps: 3, calidadJpeg: 0.3, maxFrames: 900 };
-            else App.configDVR = { minutos: 1, fps: 5, calidadJpeg: 0.5, maxFrames: 300 };
-
-            if (App.frameBuffer.length > App.configDVR.maxFrames) App.frameBuffer = App.frameBuffer.slice(App.frameBuffer.length - App.configDVR.maxFrames);
-
-            const videoEl = document.getElementById('video-fuente');
-            const canvas = document.getElementById('canvas-dvr');
-            const ctx = canvas.getContext('2d');
-            canvas.width = 640;
-            canvas.height = 480;
-
-            const msDelay = 1000 / App.configDVR.fps;
-            App.currentAudioBase64 = null;
-
-            App.dvrInterval = setInterval(() => {
-                if (videoEl.videoWidth === 0) return;
-
-                const ratio = Math.min(canvas.width / videoEl.videoWidth, canvas.height / videoEl.videoHeight);
-                const newW = videoEl.videoWidth * ratio;
-                const newH = videoEl.videoHeight * ratio;
-                const offsetX = (canvas.width - newW) / 2;
-                const offsetY = (canvas.height - newH) / 2;
-
-                ctx.fillStyle = 'black';
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
-                ctx.drawImage(videoEl, offsetX, offsetY, newW, newH);
-
-                let packet = { f: canvas.toDataURL('image/jpeg', App.configDVR.calidadJpeg) };
-
-                if (App.currentAudioBase64) {
-                    packet.a = App.currentAudioBase64;
-                    App.currentAudioBase64 = null;
-                }
-
-                App.frameBuffer.push(packet);
-                if (App.frameBuffer.length > App.configDVR.maxFrames) App.frameBuffer.shift();
-
-                if (App.frameBuffer.length % App.configDVR.fps === 0) {
-                    App.dataChannels.forEach(conn => {
-                        if (conn.open) conn.send({ type: 'sync_timeline', maxFrames: App.frameBuffer.length, fps: App.configDVR.fps, minutosConfigurados: App.configDVR.minutos });
-                    });
-                }
-                App.actualizarStatsCámara();
-            }, msDelay);
-
-            App.bucleGrabacionAudio();
+            App.iniciarGrabacionNube();
         },
 
-        bucleGrabacionAudio: () => {
+        iniciarGrabacionNube: () => {
             if (!App.grabandoDVR || !App.stream) return;
-            let audioTrack = App.stream.getAudioTracks()[0];
-            if (!audioTrack) return;
 
-            let audioStream = new MediaStream([audioTrack]);
-            try { App.audioRecorder = new MediaRecorder(audioStream); } catch (e) { return; }
+            if (App.nubeRecorder && App.nubeRecorder.state !== 'inactive') {
+                App.nubeRecorder.stop();
+            }
 
-            let chunksLocales = [];
-            App.audioRecorder.ondataavailable = e => { if (e.data.size > 0) chunksLocales.push(e.data); };
-
-            App.audioRecorder.onstop = () => {
-                if (chunksLocales.length > 0) {
-                    let blobAudio = new Blob(chunksLocales, { type: App.audioRecorder.mimeType || 'audio/webm' });
-                    const reader = new FileReader();
-                    reader.onloadend = () => { App.currentAudioBase64 = reader.result; };
-                    reader.readAsDataURL(blobAudio);
+            try {
+                // Ensure 720p 
+                const videoTrack = App.stream.getVideoTracks()[0];
+                if (videoTrack) {
+                    videoTrack.applyConstraints({ width: { ideal: 1280 }, height: { ideal: 720 } }).catch(e => e);
                 }
-                if (App.grabandoDVR) setTimeout(() => App.bucleGrabacionAudio(), 50);
-            };
 
-            App.audioRecorder.start();
-            setTimeout(() => {
-                if (App.audioRecorder && App.audioRecorder.state === 'recording') App.audioRecorder.stop();
-                else if (App.grabandoDVR) App.bucleGrabacionAudio();
-            }, 1000);
+                App.nubeRecorder = new MediaRecorder(App.stream, { mimeType: 'video/webm' });
+                let chunks = [];
+                App.nubeRecorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
+                App.nubeRecorder.onstop = async () => {
+                    if (chunks.length > 0) {
+                        let blob = new Blob(chunks, { type: 'video/webm' });
+                        let formData = new FormData();
+                        formData.append('file', blob, `cam_${Date.now()}.webm`);
+                        try {
+                            const response = await fetch('https://greenbase.arielcapdevila.com/upload', {
+                                method: 'POST', body: formData
+                            });
+                            const data = await response.json();
+                            if (data.id) {
+                                App.cloudLinks.push(data.id);
+                                if (App.cloudLinks.length > App.configDVR.maxChunks) App.cloudLinks.shift();
+
+                                App.dataChannels.forEach(conn => {
+                                    if (conn.open) conn.send({ type: 'sync_timeline', maxFrames: App.cloudLinks.length, fps: 0.2, minutosConfigurados: App.configDVR.minutos, ids: App.cloudLinks });
+                                });
+                            }
+                        } catch (e) { console.error("Error subiendo a greenbase", e); }
+                    }
+                    if (App.grabandoDVR) setTimeout(() => App.iniciarGrabacionNube(), 50);
+                };
+
+                App.nubeRecorder.start();
+                setTimeout(() => {
+                    if (App.nubeRecorder && App.nubeRecorder.state === 'recording') App.nubeRecorder.stop();
+                }, 5000);
+            } catch (e) {
+                console.error("No se puede grabar video", e);
+            }
         },
 
         actualizarStatsCámara: () => {
             document.getElementById('lbl-visores').innerText = App.dataChannels.length;
-            document.getElementById('lbl-buffer').innerText = App.frameBuffer.length;
+            document.getElementById('lbl-buffer').innerText = App.cloudLinks ? App.cloudLinks.length : 0;
         },
 
         detenerEmision: async () => {
             App.grabandoDVR = false;
-            clearInterval(App.dvrInterval);
-            if (App.audioRecorder && App.audioRecorder.state !== 'inactive') App.audioRecorder.stop();
+            if (App.nubeRecorder && App.nubeRecorder.state !== 'inactive') App.nubeRecorder.stop();
             App.AntiToque.desarmar();
             if (App.peer) App.peer.destroy();
             if (App.stream) App.stream.getTracks().forEach(t => t.stop());
@@ -427,8 +393,8 @@ async function initCore() {
             document.getElementById('texto-carga').innerText = 'Conectando Stream...';
 
             App.videoRemoto = document.getElementById('video-remoto');
-            App.imagenDvr = document.getElementById('dvr-imagen');
-            App.videoRemoto.classList.add('hidden'); App.imagenDvr.classList.add('hidden');
+            App.videoDvr = document.getElementById('video-dvr');
+            App.videoRemoto.classList.add('hidden'); App.videoDvr.classList.add('hidden');
 
             App.videoRemoto.muted = true;
             document.getElementById('icon-audio').setAttribute('data-lucide', 'volume-x');
@@ -449,6 +415,7 @@ async function initCore() {
                 App.visorDataConn.on('open', () => {
                     UI.red('ok', 'Conectado');
                     App.cambiarModoDVRVisor(document.getElementById('selector-dvr').value);
+                    App.visorDataConn.send({ type: 'req_sync' });
 
                     let dummy;
                     try {
@@ -472,6 +439,7 @@ async function initCore() {
                     if (data.type === 'sync_timeline') {
                         App.bufferSizeRemoto = data.maxFrames;
                         App.fpsRemoto = data.fps;
+                        App.cloudLinksRemoto = data.ids || [];
 
                         const tl = document.getElementById('cam-timeline');
                         tl.max = Math.max(0, data.maxFrames - 1);
@@ -480,14 +448,6 @@ async function initCore() {
                         if (App.esLive) {
                             tl.value = tl.max;
                             document.getElementById('tiempo-dvr').innerText = 'EN DIRECTO';
-                        }
-                    }
-                    else if (data.type === 'dvr_playback_data') {
-                        document.getElementById('overlay-cargando').classList.add('hidden');
-                        App.imagenDvr.src = data.frame;
-                        if (data.audio && !App.videoRemoto.muted) {
-                            App.audioPlayer.src = data.audio;
-                            App.audioPlayer.play().catch(e => e);
                         }
                     }
                     else if (data.type === 'antitoque_status') {
@@ -523,13 +483,12 @@ async function initCore() {
 
         desconectarVisor: async () => {
             await App.salirPantallaCompleta(); await App.liberarWakeLock();
-            clearInterval(App.dvrPlaybackInterval);
             App.audioPlayer.pause();
             if (App.visorCall) App.visorCall.close();
             if (App.visorDataConn) App.visorDataConn.close();
             if (App.peer) App.peer.destroy();
             if (App.videoRemoto) { App.videoRemoto.pause(); App.videoRemoto.srcObject = null; }
-            if (App.imagenDvr) App.imagenDvr.src = '';
+            if (App.videoDvr) { App.videoDvr.pause(); App.videoDvr.src = ''; }
             document.getElementById('reproductor-view').classList.add('hidden');
             App.iniciarModoVisor();
         },
@@ -538,7 +497,7 @@ async function initCore() {
             const val = document.getElementById('brillo-slider').value;
             App.filtroBrillo = parseFloat(val);
             if (App.videoRemoto) App.videoRemoto.style.filter = `brightness(${App.filtroBrillo}) contrast(${1 + (App.filtroBrillo * 0.1)})`;
-            if (App.imagenDvr) App.imagenDvr.style.filter = `brightness(${App.filtroBrillo}) contrast(${1.2 + (App.filtroBrillo * 0.1)}) saturate(0.5)`;
+            if (App.videoDvr) App.videoDvr.style.filter = `brightness(${App.filtroBrillo}) contrast(${1.2 + (App.filtroBrillo * 0.1)}) saturate(0.5)`;
         },
 
         actualizarTextoTiempoTimeline: (indice) => {
@@ -561,60 +520,58 @@ async function initCore() {
         },
 
         alMoverTimelineArrastre: (valor) => {
-            clearInterval(App.dvrPlaybackInterval);
             const indice = parseInt(valor);
             App.actualizarTextoTiempoTimeline(indice);
 
-            if (indice < App.bufferSizeRemoto - 2) {
+            if (indice < App.bufferSizeRemoto - 1) {
                 App.esLive = false;
                 App.videoRemoto.classList.add('hidden');
-                App.imagenDvr.classList.remove('hidden');
+                if (!App.videoDvr) App.videoDvr = document.getElementById('video-dvr');
+                App.videoDvr.classList.remove('hidden');
                 App.actualizarUIVisor(false);
 
                 if (App.videoRemoto && !App.videoRemoto.muted) App.videoRemoto.muted = true;
 
-                if (App.visorDataConn && App.visorDataConn.open) {
-                    App.visorDataConn.send({ type: 'req_frame', index: indice });
+                if (App.cloudLinksRemoto && App.cloudLinksRemoto[indice]) {
+                    const videoSrc = `https://greenbase.arielcapdevila.com/file/${App.cloudLinksRemoto[indice]}`;
+                    if (App.videoDvr.src !== videoSrc) {
+                        App.videoDvr.src = videoSrc;
+                        App.videoDvr.loop = false;
+                        App.videoDvr.muted = false; // El audio viene en el vídeo
+                        App.videoDvr.play().catch(e => e);
+                    }
                 }
+            } else {
+                App.volverAlLive();
             }
         },
 
         alSoltarTimeline: (valor) => {
             const indice = parseInt(valor);
 
-            if (indice >= App.bufferSizeRemoto - 2) {
+            if (indice >= App.bufferSizeRemoto - 1) {
                 App.volverAlLive();
             } else {
-                App.reproduciendoDvrIndex = indice;
-                App.iniciarReproduccionDvr();
+                if (!App.videoDvr) App.videoDvr = document.getElementById('video-dvr');
+                App.videoDvr.onended = () => {
+                    if (App.esLive) return;
+                    let nextIdx = parseInt(document.getElementById('cam-timeline').value) + 1;
+                    if (nextIdx < App.bufferSizeRemoto - 1) {
+                        document.getElementById('cam-timeline').value = nextIdx;
+                        App.alMoverTimelineArrastre(nextIdx);
+                    } else {
+                        App.volverAlLive();
+                    }
+                };
             }
         },
 
-        iniciarReproduccionDvr: () => {
-            clearInterval(App.dvrPlaybackInterval);
-            App.dvrPlaybackInterval = setInterval(() => {
-                if (App.esLive || !App.visorDataConn || !App.visorDataConn.open) {
-                    clearInterval(App.dvrPlaybackInterval);
-                    return;
-                }
-                if (App.reproduciendoDvrIndex >= App.bufferSizeRemoto - 2) {
-                    App.volverAlLive();
-                    return;
-                }
-
-                App.visorDataConn.send({ type: 'req_playback', index: App.reproduciendoDvrIndex });
-                document.getElementById('cam-timeline').value = App.reproduciendoDvrIndex;
-                App.actualizarTextoTiempoTimeline(App.reproduciendoDvrIndex);
-
-                App.reproduciendoDvrIndex++;
-            }, 1000 / App.fpsRemoto);
-        },
-
         volverAlLive: () => {
-            clearInterval(App.dvrPlaybackInterval);
             App.esLive = true;
             App.audioPlayer.pause();
-            App.imagenDvr.classList.add('hidden');
+            if (!App.videoDvr) App.videoDvr = document.getElementById('video-dvr');
+            App.videoDvr.pause();
+            App.videoDvr.classList.add('hidden');
             App.videoRemoto.classList.remove('hidden');
             App.actualizarUIVisor(true);
             const tl = document.getElementById('cam-timeline');

@@ -211,9 +211,9 @@
         <video id="video-remoto" autoplay playsinline muted
             class="w-full h-full object-contain transition-all duration-300"></video>
 
-        <!-- DVR IMAGEN -->
-        <img id="dvr-imagen" src=""
-            class="w-full h-full object-contain hidden transition-all duration-300 filter contrast-125 saturate-75">
+        <!-- DVR VIDEO CONTENT -->
+        <video id="video-dvr" preload="auto" autoplay playsinline
+            class="w-full h-full object-contain hidden transition-all duration-300"></video>
 
         <div id="overlay-cargando"
             class="absolute flex flex-col items-center gap-2 z-10 bg-black/60 p-6 rounded-2xl backdrop-blur-md border border-slate-700">
@@ -250,9 +250,10 @@
                     <div class="flex items-center justify-between gap-4">
                         <select id="selector-dvr" onchange="App.cambiarModoDVRVisor(this.value)"
                             class="bg-slate-800 border border-slate-600 text-xs rounded-lg px-2 py-1.5 outline-none text-slate-200 w-full shadow-inner">
-                            <option value="1">Memoria: 1 Minuto</option>
-                            <option value="5">Memoria: 5 Minutos</option>
-                            <option value="10">Memoria: 10 Minutos</option>
+                            <option value="1">Nube: 1 Minuto</option>
+                            <option value="5">Nube: 5 Minutos</option>
+                            <option value="10">Nube: 10 Minutos</option>
+                            <option value="0">Apagar Motor DVR</option>
                         </select>
 
                         <button onclick="App.ordenarCambioLente()" title="Girar Cámara Remota"
