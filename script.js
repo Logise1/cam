@@ -1,7 +1,6 @@
 async function initCore() {
-    const ts = Date.now();
-    const { initializeApp } = await import(`https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js?t=${ts}`);
-    const { getDatabase, ref, set, onValue, remove, onDisconnect } = await import(`https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js?t=${ts}`);
+    const { initializeApp } = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js");
+    const { getDatabase, ref, set, onValue, remove, onDisconnect } = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js");
 
     const firebaseConfig = {
         apiKey: "AIzaSyBs4OlJjJ14WPTQ3u-7VkOjgLKCKQypmTI", authDomain: "aiportal-ce688.firebaseapp.com",
