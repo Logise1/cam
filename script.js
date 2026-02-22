@@ -284,19 +284,13 @@ async function initCore() {
             }
 
             try {
-                // Ensure 720p 
-                const videoTrack = App.stream.getVideoTracks()[0];
-                if (videoTrack) {
-                    videoTrack.applyConstraints({ width: { ideal: 1280 }, height: { ideal: 720 } }).catch(e => e);
-                }
-
                 let optimalMime = 'video/webm';
                 let ext = 'webm';
                 if (MediaRecorder.isTypeSupported('video/mp4')) { optimalMime = 'video/mp4'; ext = 'mp4'; }
                 else if (MediaRecorder.isTypeSupported('video/webm; codecs=vp9')) { optimalMime = 'video/webm; codecs=vp9'; }
                 else if (MediaRecorder.isTypeSupported('video/webm; codecs=vp8')) { optimalMime = 'video/webm; codecs=vp8'; }
 
-                App.nubeRecorder = new MediaRecorder(App.stream, { mimeType: optimalMime });
+                App.nubeRecorder = new MediaRecorder(App.stream, { mimeType: optimalMime, videoBitsPerSecond: 1000000 });
                 let chunks = [];
                 App.nubeRecorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
                 App.nubeRecorder.onstop = async () => {
