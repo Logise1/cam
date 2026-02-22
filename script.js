@@ -290,14 +290,20 @@ async function initCore() {
                     videoTrack.applyConstraints({ width: { ideal: 1280 }, height: { ideal: 720 } }).catch(e => e);
                 }
 
-                App.nubeRecorder = new MediaRecorder(App.stream, { mimeType: 'video/webm' });
+                let optimalMime = 'video/webm';
+                let ext = 'webm';
+                if (MediaRecorder.isTypeSupported('video/mp4')) { optimalMime = 'video/mp4'; ext = 'mp4'; }
+                else if (MediaRecorder.isTypeSupported('video/webm; codecs=vp9')) { optimalMime = 'video/webm; codecs=vp9'; }
+                else if (MediaRecorder.isTypeSupported('video/webm; codecs=vp8')) { optimalMime = 'video/webm; codecs=vp8'; }
+
+                App.nubeRecorder = new MediaRecorder(App.stream, { mimeType: optimalMime });
                 let chunks = [];
                 App.nubeRecorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
                 App.nubeRecorder.onstop = async () => {
                     if (chunks.length > 0) {
-                        let blob = new Blob(chunks, { type: 'video/webm' });
+                        let blob = new Blob(chunks, { type: optimalMime });
                         let formData = new FormData();
-                        formData.append('file', blob, `cam_${Date.now()}.webm`);
+                        formData.append('file', blob, `cam_${Date.now()}.${ext}`);
                         try {
                             const response = await fetch('https://greenbase.arielcapdevila.com/upload', {
                                 method: 'POST', body: formData
@@ -469,7 +475,7 @@ async function initCore() {
             const btn = document.getElementById('btn-audio-toggle');
             if (targetMute) {
                 btn.innerHTML = `<i data-lucide="volume-x" class="w-4 h-4 text-red-400"></i> <span id="texto-audio">Activar Sonido</span>`;
-                App.audioPlayer.pause();
+                if (App.audioPlayer) App.audioPlayer.pause();
             } else {
                 App.videoRemoto.volume = 1.0; App.videoRemoto.play().catch(e => { });
                 btn.innerHTML = `<i data-lucide="volume-2" class="w-4 h-4 text-emerald-400"></i> <span id="texto-audio">Sonido ON</span>`;
@@ -483,7 +489,7 @@ async function initCore() {
 
         desconectarVisor: async () => {
             await App.salirPantallaCompleta(); await App.liberarWakeLock();
-            App.audioPlayer.pause();
+            if (App.audioPlayer) App.audioPlayer.pause();
             if (App.visorCall) App.visorCall.close();
             if (App.visorDataConn) App.visorDataConn.close();
             if (App.peer) App.peer.destroy();
@@ -536,6 +542,7 @@ async function initCore() {
                     const videoSrc = `https://greenbase.arielcapdevila.com/file/${App.cloudLinksRemoto[indice]}`;
                     if (App.videoDvr.src !== videoSrc) {
                         App.videoDvr.src = videoSrc;
+                        App.videoDvr.load();
                         App.videoDvr.loop = false;
                         App.videoDvr.muted = false; // El audio viene en el vídeo
                         App.videoDvr.play().catch(e => e);
@@ -568,7 +575,7 @@ async function initCore() {
 
         volverAlLive: () => {
             App.esLive = true;
-            App.audioPlayer.pause();
+            if (App.audioPlayer) App.audioPlayer.pause();
             if (!App.videoDvr) App.videoDvr = document.getElementById('video-dvr');
             App.videoDvr.pause();
             App.videoDvr.classList.add('hidden');
