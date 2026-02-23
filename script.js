@@ -453,8 +453,8 @@ async function initCore() {
                         App.videoDvr.src = App.currentDvrUrl;
                         App.videoDvr.load();
                         App.videoDvr.loop = false;
-                        App.videoDvr.muted = false; // El audio viene en el vídeo
-                        App.videoDvr.play().catch(e => e);
+                        App.videoDvr.muted = App.videoRemoto ? App.videoRemoto.muted : true; // Respetar el mute de la sesión
+                        App.videoDvr.play().catch(e => console.log("Auto-play error", e));
                     }
                     else if (data.type === 'antitoque_status') {
                         const btnAnti = document.getElementById('btn-antitoque');
@@ -471,13 +471,14 @@ async function initCore() {
             if (!App.videoRemoto) return;
             const targetMute = !App.videoRemoto.muted;
             App.videoRemoto.muted = targetMute;
+            if (App.videoDvr) App.videoDvr.muted = targetMute; // Sincroniza audio
 
             const btn = document.getElementById('btn-audio-toggle');
             if (targetMute) {
                 btn.innerHTML = `<i data-lucide="volume-x" class="w-4 h-4 text-red-400"></i> <span id="texto-audio">Activar Sonido</span>`;
-                if (App.audioPlayer) App.audioPlayer.pause();
             } else {
-                App.videoRemoto.volume = 1.0; App.videoRemoto.play().catch(e => { });
+                if (App.esLive) { App.videoRemoto.volume = 1.0; App.videoRemoto.play().catch(e => { }); }
+                else if (App.videoDvr) { App.videoDvr.volume = 1.0; App.videoDvr.play().catch(e => { }); }
                 btn.innerHTML = `<i data-lucide="volume-2" class="w-4 h-4 text-emerald-400"></i> <span id="texto-audio">Sonido ON</span>`;
             }
             lucide.createIcons();
