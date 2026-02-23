@@ -538,10 +538,6 @@ async function initCore() {
                 App.actualizarUIVisor(false);
 
                 if (App.videoRemoto && !App.videoRemoto.muted) App.videoRemoto.muted = true;
-
-                if (App.visorDataConn && App.visorDataConn.open) {
-                    App.visorDataConn.send({ type: 'req_video_chunk', index: indice });
-                }
             } else {
                 App.volverAlLive();
             }
@@ -554,12 +550,19 @@ async function initCore() {
                 App.volverAlLive();
             } else {
                 if (!App.videoDvr) App.videoDvr = document.getElementById('video-dvr');
+
+                // Pedir el bloque de video al emisor SOLO al soltar la barra
+                if (App.visorDataConn && App.visorDataConn.open) {
+                    App.visorDataConn.send({ type: 'req_video_chunk', index: indice });
+                }
+
                 App.videoDvr.onended = () => {
                     if (App.esLive) return;
                     let nextIdx = parseInt(document.getElementById('cam-timeline').value) + 1;
                     if (nextIdx < App.bufferSizeRemoto - 1) {
                         document.getElementById('cam-timeline').value = nextIdx;
                         App.alMoverTimelineArrastre(nextIdx);
+                        App.alSoltarTimeline(nextIdx); // Forzar descarga del siguiente fragmento
                     } else {
                         App.volverAlLive();
                     }
