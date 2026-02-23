@@ -30,8 +30,8 @@ async function initCore() {
         // Variables Globales App
         peer: null, stream: null, dataChannels: [], mediaCallsActivas: [],
         camaraId: null, camaraSeleccionada: null, miPassword: '',
-        esLive: true, cloudLinks: [], configDVR: { minutos: 1, maxChunks: 12 }, grabandoDVR: false,
-        nubeRecorder: null, reproduciendoDvrIndex: 0, bufferSizeRemoto: 0, fpsRemoto: 0.2, cloudLinksRemoto: [],
+        esLive: true, videoBuffer: [], configDVR: { minutos: 1, maxChunks: 12 }, grabandoDVR: false,
+        localRecorder: null, reproduciendoDvrIndex: 0, bufferSizeRemoto: 0, fpsRemoto: 0.2, currentDvrUrl: null,
         visorDataConn: null, visorCall: null, videoRemoto: null, videoDvr: null, audioPlayer: null,
         lenteActiva: 'environment', filtroBrillo: 1.0,
 
@@ -213,7 +213,13 @@ async function initCore() {
 
                     conn.on('data', (data) => {
                         if (data.type === 'req_sync') {
-                            conn.send({ type: 'sync_timeline', maxFrames: App.cloudLinks.length, fps: 0.2, minutosConfigurados: App.configDVR.minutos, ids: App.cloudLinks });
+                            conn.send({ type: 'sync_timeline', maxFrames: App.videoBuffer.length, fps: 0.2, minutosConfigurados: App.configDVR.minutos });
+                        }
+                        else if (data.type === 'req_video_chunk') {
+                            const chunk = App.videoBuffer[data.index];
+                            if (chunk) {
+                                conn.send({ type: 'video_chunk_data', index: data.index, blob: chunk, mimeType: chunk.type });
+                            }
                         }
                         else if (data.type === 'set_dvr_mode') App.aplicarMotorDVR(parseInt(data.minutos));
                         else if (data.type === 'switch_camera') App.ejecutarCambioLenteLocal();
@@ -267,20 +273,20 @@ async function initCore() {
             } catch (error) { }
         },
 
-        // --- MOTOR CLOUD DVR ---
+        // --- MOTOR LOCAL DVR ---
         aplicarMotorDVR: (minutos) => {
             let maxChunks = (minutos * 60) / 5;
             App.configDVR = { minutos: minutos, maxChunks: maxChunks };
-            if (App.cloudLinks.length > maxChunks) App.cloudLinks = App.cloudLinks.slice(App.cloudLinks.length - maxChunks);
+            if (App.videoBuffer.length > maxChunks) App.videoBuffer = App.videoBuffer.slice(App.videoBuffer.length - maxChunks);
 
-            App.iniciarGrabacionNube();
+            App.iniciarGrabacionLocal();
         },
 
-        iniciarGrabacionNube: () => {
+        iniciarGrabacionLocal: () => {
             if (!App.grabandoDVR || !App.stream) return;
 
-            if (App.nubeRecorder && App.nubeRecorder.state !== 'inactive') {
-                App.nubeRecorder.stop();
+            if (App.localRecorder && App.localRecorder.state !== 'inactive') {
+                App.localRecorder.stop();
             }
 
             try {
@@ -290,35 +296,25 @@ async function initCore() {
                 else if (MediaRecorder.isTypeSupported('video/webm; codecs=vp9')) { optimalMime = 'video/webm; codecs=vp9'; }
                 else if (MediaRecorder.isTypeSupported('video/webm; codecs=vp8')) { optimalMime = 'video/webm; codecs=vp8'; }
 
-                App.nubeRecorder = new MediaRecorder(App.stream, { mimeType: optimalMime, videoBitsPerSecond: 1000000 });
+                App.localRecorder = new MediaRecorder(App.stream, { mimeType: optimalMime, videoBitsPerSecond: 1000000 });
                 let chunks = [];
-                App.nubeRecorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
-                App.nubeRecorder.onstop = async () => {
+                App.localRecorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
+                App.localRecorder.onstop = async () => {
                     if (chunks.length > 0) {
                         let blob = new Blob(chunks, { type: optimalMime });
-                        let formData = new FormData();
-                        formData.append('file', blob, `cam_${Date.now()}.${ext}`);
-                        try {
-                            const response = await fetch('https://greenbase.arielcapdevila.com/upload', {
-                                method: 'POST', body: formData
-                            });
-                            const data = await response.json();
-                            if (data.id) {
-                                App.cloudLinks.push(data.id);
-                                if (App.cloudLinks.length > App.configDVR.maxChunks) App.cloudLinks.shift();
+                        App.videoBuffer.push(blob);
+                        if (App.videoBuffer.length > App.configDVR.maxChunks) App.videoBuffer.shift();
 
-                                App.dataChannels.forEach(conn => {
-                                    if (conn.open) conn.send({ type: 'sync_timeline', maxFrames: App.cloudLinks.length, fps: 0.2, minutosConfigurados: App.configDVR.minutos, ids: App.cloudLinks });
-                                });
-                            }
-                        } catch (e) { console.error("Error subiendo a greenbase", e); }
+                        App.dataChannels.forEach(conn => {
+                            if (conn.open) conn.send({ type: 'sync_timeline', maxFrames: App.videoBuffer.length, fps: 0.2, minutosConfigurados: App.configDVR.minutos });
+                        });
                     }
-                    if (App.grabandoDVR) setTimeout(() => App.iniciarGrabacionNube(), 50);
+                    if (App.grabandoDVR) setTimeout(() => App.iniciarGrabacionLocal(), 50);
                 };
 
-                App.nubeRecorder.start();
+                App.localRecorder.start();
                 setTimeout(() => {
-                    if (App.nubeRecorder && App.nubeRecorder.state === 'recording') App.nubeRecorder.stop();
+                    if (App.localRecorder && App.localRecorder.state === 'recording') App.localRecorder.stop();
                 }, 5000);
             } catch (e) {
                 console.error("No se puede grabar video", e);
@@ -327,12 +323,12 @@ async function initCore() {
 
         actualizarStatsCámara: () => {
             document.getElementById('lbl-visores').innerText = App.dataChannels.length;
-            document.getElementById('lbl-buffer').innerText = App.cloudLinks ? App.cloudLinks.length : 0;
+            document.getElementById('lbl-buffer').innerText = App.videoBuffer.length;
         },
 
         detenerEmision: async () => {
             App.grabandoDVR = false;
-            if (App.nubeRecorder && App.nubeRecorder.state !== 'inactive') App.nubeRecorder.stop();
+            if (App.localRecorder && App.localRecorder.state !== 'inactive') App.localRecorder.stop();
             App.AntiToque.desarmar();
             if (App.peer) App.peer.destroy();
             if (App.stream) App.stream.getTracks().forEach(t => t.stop());
@@ -439,7 +435,6 @@ async function initCore() {
                     if (data.type === 'sync_timeline') {
                         App.bufferSizeRemoto = data.maxFrames;
                         App.fpsRemoto = data.fps;
-                        App.cloudLinksRemoto = data.ids || [];
 
                         const tl = document.getElementById('cam-timeline');
                         tl.max = Math.max(0, data.maxFrames - 1);
@@ -449,6 +444,17 @@ async function initCore() {
                             tl.value = tl.max;
                             document.getElementById('tiempo-dvr').innerText = 'EN DIRECTO';
                         }
+                    }
+                    else if (data.type === 'video_chunk_data') {
+                        if (App.currentDvrUrl) URL.revokeObjectURL(App.currentDvrUrl);
+                        App.currentDvrUrl = URL.createObjectURL(new Blob([data.blob], { type: data.mimeType }));
+
+                        if (!App.videoDvr) App.videoDvr = document.getElementById('video-dvr');
+                        App.videoDvr.src = App.currentDvrUrl;
+                        App.videoDvr.load();
+                        App.videoDvr.loop = false;
+                        App.videoDvr.muted = false; // El audio viene en el vídeo
+                        App.videoDvr.play().catch(e => e);
                     }
                     else if (data.type === 'antitoque_status') {
                         const btnAnti = document.getElementById('btn-antitoque');
@@ -532,15 +538,8 @@ async function initCore() {
 
                 if (App.videoRemoto && !App.videoRemoto.muted) App.videoRemoto.muted = true;
 
-                if (App.cloudLinksRemoto && App.cloudLinksRemoto[indice]) {
-                    const videoSrc = `https://greenbase.arielcapdevila.com/file/${App.cloudLinksRemoto[indice]}`;
-                    if (App.videoDvr.src !== videoSrc) {
-                        App.videoDvr.src = videoSrc;
-                        App.videoDvr.load();
-                        App.videoDvr.loop = false;
-                        App.videoDvr.muted = false; // El audio viene en el vídeo
-                        App.videoDvr.play().catch(e => e);
-                    }
+                if (App.visorDataConn && App.visorDataConn.open) {
+                    App.visorDataConn.send({ type: 'req_video_chunk', index: indice });
                 }
             } else {
                 App.volverAlLive();
